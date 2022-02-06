@@ -6,26 +6,16 @@
 /*   By: min-jo <min-jo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/10/18 15:35:41 by min-jo            #+#    #+#             */
-/*   Updated: 2021/12/13 16:53:33 by min-jo           ###   ########.fr       */
+/*   Updated: 2022/02/06 17:36:32 by min-jo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <unistd.h>
-#include <stdint.h>
+#include "ft_printf.h"
 
-int	str_len(char *str)
-{
-	int		cnt;
-
-	cnt = 0;
-	while (*str)
-	{
-		cnt++;
-		str++;
-	}
-	return (cnt);
-}
-
+/*
+* size로 0b10000 꼴인 minus_mask와 0b11111꼴인 bit_mask 계산
+*/
 void	cal_mask(size_t size, uintmax_t *bit_mask, uintmax_t *minus_mask)
 {
 	size_t		bit_size;
@@ -38,60 +28,70 @@ void	cal_mask(size_t size, uintmax_t *bit_mask, uintmax_t *minus_mask)
 	*minus_mask <<= (8 * size - 1);
 }
 
-uintmax_t	cal_divnum(int sign, uintmax_t max, uintmax_t base_len)
+/*
+* 숫자 표현 범위 내 base_len^지수승 꼴의 최대 값을 구함
+* 4byte int 면 2147483647이 최대 숫자고 10^지수승 꼴 최대값은 1000000000임
+* 이게 base_len과 byte에 따라 달라지니까 계산해줘야 됨
+*/
+uintmax_t	cal_divnum(t_data *data, uintmax_t max)
 {
 	uintmax_t	divnum;
 
-	max >>= sign;
+	max >>= data->sign;
 	divnum = 0b1U;
-	while (divnum * base_len < max && divnum * base_len > divnum)
-		divnum *= base_len;
+	while (divnum * data->base_len < max && divnum * data->base_len > divnum)
+		divnum *= data->base_len;
 	return (divnum);
 }
 
-int	print_num_pos(uintmax_t num, uintmax_t divnum, char *base,
-		int base_len)
+/*
+* 단순한 양수 정수 출력
+*/
+void	print_num_pos(t_print *print, t_data *data, uintmax_t divnum)
 {
-	int	cnt;
-
-	cnt = 0;
-	while (num < divnum && 1 < divnum)
-		divnum /= base_len;
+	while (data->num < divnum && 1 < divnum)
+		divnum /= data->base_len;
 	while (divnum)
 	{
-		write(1, base + num / divnum, 1);
-		cnt++;
-		num %= divnum;
-		divnum /= base_len;
+		general_write(print, data->base + data->num / divnum, 1);
+		if (-1 == print->ret)
+			return ;
+		data->num %= divnum;
+		divnum /= data->base_len;
 	}
-	return (cnt);
 }
 
-int	print_num(uintmax_t num, int sign, size_t size, char *base)
+/*
+* print->num 숫자를 write 시스템 콜만 사용하여 출력
+* data 구조체를 보면 num의 signed여부, byte size, base_len을 알면 출력 가능
+* 1. -2147483648 절댓값 1줄이고 2의 보수 계산
+* 2. 2147483647 맨 앞 한자리 2만 출력, 나머지 저장
+* 3. 147483647 절댓값 1늘려서 다시 원래 숫자 복원
+* 4. 147483648 양수 출력 로직으로 넘김
+*/
+void	print_num(t_print *print, t_data *data)
 {
-	uintmax_t	base_len;
 	uintmax_t	bit_mask;
 	uintmax_t	minus_mask;
 	uintmax_t	divnum;
-	int			cnt;
 
-	base_len = str_len(base);
-	cal_mask(size, &bit_mask, &minus_mask);
-	divnum = cal_divnum(sign, bit_mask, base_len);
-	num &= bit_mask;
-	cnt = 0;
-	if (sign && (num & minus_mask))
+	cal_mask(data->size, &bit_mask, &minus_mask);
+	divnum = cal_divnum(data, bit_mask);
+	data->num &= bit_mask;
+	if (data->sign && (data->num & minus_mask))
 	{
-		write(1, "-", 1);
-		cnt++;
-		num = (~(num + 1) + 1) & bit_mask;
-		if (num / divnum)
+		general_write(print, "-", 1);
+		if (-1 == print->ret)
+			return ;
+		data->num = (~(data->num + 1) + 1) & bit_mask;
+		if (data->num / divnum)
 		{
-			write(1, base + num / divnum, 1);
-			cnt++;
+			general_write(print, data->base + data->num / divnum, 1);
+			if (print->ret == -1)
+				return ;
 		}
-		num = num % divnum + 1;
-		divnum /= base_len;
+		data->num = data->num % divnum + 1;
+		divnum /= data->base_len;
 	}
-	return (cnt + print_num_pos(num, divnum, base, base_len));
+	print_num_pos(print, data, divnum);
 }
