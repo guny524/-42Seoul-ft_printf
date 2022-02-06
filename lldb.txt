@@ -1,0 +1,3 @@
+b ft_printf.c:93
+target stop-hook add --one-liner “frame variable”
+target stop-hook add --one-liner "p print”
