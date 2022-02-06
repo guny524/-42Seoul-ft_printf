@@ -1,33 +1,39 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   print_str.c                                        :+:      :+:    :+:   */
+/*   print_char.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: min-jo <min-jo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2021/12/09 22:37:08 by min-jo            #+#    #+#             */
-/*   Updated: 2021/12/09 22:39:37 by min-jo           ###   ########.fr       */
+/*   Created: 2021/12/20 12:33:24 by min-jo            #+#    #+#             */
+/*   Updated: 2022/02/05 19:26:47 by min-jo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <unistd.h>
-#include <stdarg.h>
+#include "ft_printf.h"
 
-int	print_char(char c)
+void	print_char(t_print *print)
 {
-	return (write(1, &c, 1));
+	char	c;
+
+	c = va_arg(print->ap, int);
+	general_write(print, &c, 1);
 }
 
-int	print_str(va_list *ap)
+void	print_str(t_print *print)
 {
 	char	*str;
-	char	*ret;
 
-	str = va_arg(*ap, char *);
-	if (str == NULL)
-		return (write(1, "(null)", 6));
-	ret = str;
+	str = va_arg(print->ap, char *);
+	if (NULL == str)
+	{
+		general_write(print, "(null)", 6);
+		return ;
+	}
 	while (*str)
-		write(1, str++, 1);
-	return (str - ret);
+	{
+		general_write(print, str++, 1);
+		if (-1 == print->ret)
+			return ;
+	}
 }
