@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   ft_printf.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: min-jo <min-jo@student.42.fr>              +#+  +:+       +#+        */
+/*   By: min-jo <min-jo@student.42seoul.kr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/10/11 16:18:07 by min-jo            #+#    #+#             */
-/*   Updated: 2022/02/05 19:26:21 by min-jo           ###   ########.fr       */
+/*   Updated: 2022/02/07 20:15:23 by min-jo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,15 +18,16 @@
 int	ft_printf(const char *format, ...)
 {
 	va_list	ap;
+
 	va_start(ap, format);
-	// int	general_printf(int fd, size_t size, char *str, char **ret, const char *format, ...)
-	// fd = 1
-	// size = -1 -> (size_t)INT_MAX + 1로 세팅 됨
+	// int	general_printf(size_t size, char *str, char **ret, int fd, const char *format, ...)
+	// size = -1 -> (size_t)INT_MAX로 세팅 됨
 	// str = NULL
 	// ret = NULL
+	// fd = 1
 	// 가변길이 매개변수 리스트를 사용 것이 아니라 현재 함수에서 va_start를 사용하므로 va_list ap롤 넘겨준다. format = NULL
 	// 가변길이 매개변수 리스트 대신 format과 va_list를 넘겨 줌
-	return (general_printf(1, -1, NULL, NULL, NULL, format, ap));
+	return (general_printf(-1, NULL, NULL, 1, NULL, format, ap));
 }
 
 /*
@@ -35,20 +36,20 @@ int	ft_printf(const char *format, ...)
 * int	dprintf(int fd, const char *format);
 * int	snprintf(char *str, size_t size, const char *format);
 * int	asprintf(char **ret, const char *format);
-* int	general_printf(int fd, size_t size, char *str, char **ret, const char *format, ...)
+* int	general_printf(size_t size, char *str, char **ret, int fd, const char *format, ...)
 *
-* size == -1; // (size_t)INT_MAX + 1로 세팅, INT_MAX 넘어서 출력 못 함
+* size == -1; // (size_t)INT_MAX로 세팅, INT_MAX 넘어서 출력 못 함
 * str == NULL && ret == NULL // fd로 바로 출력
 * str == NULL && ret != NULL // 동적할당
 * str != NULL // str에 출력
 */
-int	general_printf(int fd, size_t size, char *str, ...)
+int	general_printf(size_t size, char *str, char **ret, ...)
 {
 	va_list	ap;
 	t_print	print;
 
 	va_start(ap, str);
-	print = init_print(fd, size, str, ap);
+	print = init_print(size, str, ret, ap);
 	print.cnt = 0;
 	print.check = 1; // print 안 하고 count만 셈
 	print.ret = 0; // error state 검사에 사용
@@ -60,22 +61,20 @@ int	general_printf(int fd, size_t size, char *str, ...)
 /*
 * print 구조체의 대한 정보 세팅
 */
-t_print	init_print(int fd, size_t size, char *str, va_list ap)
+t_print	init_print(size_t size, char *str, char **ret, va_list ap)
 {
 	t_print	print;
-	char **ret;
 
-	ret = va_arg(ap, char**);
 	print.size = size;
 	if (size > (size_t)INT_MAX)
-		print.size = (size_t)INT_MAX + 1; // INT_MAX를 넘어서 출력 못 함
+		print.size = (size_t)INT_MAX; // INT_MAX를 넘어서 출력 못 함
 	print.fd = -1;
 	if (str == NULL && ret == NULL) // fd에 바로 출력
-		print.fd = fd;
+		print.fd = va_arg(ap, int);
 	print.buf = str;
 	if (str == NULL && ret != NULL) // 동적할당
 	{
-		print.buf = malloc(print.size); // 동적할당 실패한건 호출한 general_printf 쪽에서 체크함
+		print.buf = malloc(print.size + 1); // 마지막 null 문자 +1, 동적할당 실패한건 호출한 general_printf 쪽에서 체크함
 		// 이 함수는 return이 print이기 때문에 state에 리턴 값으로 반영 못함
 		*ret = print.buf;
 	}
